@@ -1,6 +1,7 @@
 import requests
 import argparse
 import time
+import csv
 from geopy.distance import geodesic
 
 
@@ -16,6 +17,20 @@ def make_get_request(url, max_retry, wait_between_retry_in_sec):
             retry += 1
         time.sleep(wait_between_retry_in_sec)
 
+def get_all_pages(url, max_retry, wait_between_retry_in_sec):
+    page=1
+    all_results=[]
+    while page>0:
+        single_page = make_get_request(url+str(page), max_retry, wait_between_retry_in_sec)
+        print(f"get page {page} on a total of {single_page.json()['total_pages']}")
+        all_results.extend(single_page.json()['results'])
+        if (single_page.json()['total_pages']==page):
+            page=-1
+        else:
+            page+=1
+    return all_results
+
+
 
 def parse_arguments():
     """Parses command-line arguments in Linux style.
@@ -27,8 +42,9 @@ def parse_arguments():
         description="Script to give the list og firms around a position defined by its lattitude and longitude and the radius")
     parser.add_argument("-l", "--latitude", help="latitude of the position to look around", default='50.8010900')
     parser.add_argument("-L", "--longitude", help="longitude of the position to look around", default="2.4852700")
-    parser.add_argument("-r", "--radius", help="radius in km to look around (max 50kms)", default="40")
+    parser.add_argument("-r", "--radius", help="radius in km to look around (max 50kms)", default="10")
     parser.add_argument("-R", "--retry", help="amount of retry in case of error from the API", default=3)
+    parser.add_argument("-s", "--section", help="activite principale de l'entreprise (code NAF: A, B...)", default="C")
     parser.add_argument("-w", "--wait", help="wait between retry in seconds in case of error from the API",
                         default=10)
 
@@ -72,7 +88,7 @@ def enrich_distance_from_ref(refpoint, firms):
 
 def get_dict_firms(response):
     results = []
-    for firm in response.json()['results']:
+    for firm in response:
         print(firm)
         for etablissement in firm['matching_etablissements']:
             print("eta:" + str(etablissement))
@@ -96,12 +112,14 @@ def get_dict_firms(response):
     return results
 
 
+
 if __name__ == "__main__":
     args = parse_arguments()
 
-# TODO: add options to give which sector:
-url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}&section_activite_principale=D"
-# TODO: query every page:
-response = make_get_request(url, args.retry, args.wait)
-# TODO: add filter for the size of the company:
-print(enrich_distance_from_ref((args.latitude, args.longitude), filter_non_active_firm(get_dict_firms(response))))
+    # TODO: add options to give which section or code (one of them):
+    url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}&section_activite_principale={args.section}&page="
+    response = get_all_pages(url, args.retry, args.wait)
+    print(response)
+    write_to_csv(
+        enrich_distance_from_ref((args.latitude, args.longitude), filter_non_active_firm(get_dict_firms(response))),
+        'output.csv')
