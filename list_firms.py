@@ -1,0 +1,107 @@
+import requests
+import argparse
+import time
+from geopy.distance import geodesic
+
+
+def make_get_request(url, max_retry, wait_between_retry_in_sec):
+    retry = 0
+    while retry < max_retry:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+            return response
+        except requests.exceptions.RequestException as e:
+            print(f"An error occurred: {e}")
+            retry += 1
+        time.sleep(wait_between_retry_in_sec)
+
+
+def parse_arguments():
+    """Parses command-line arguments in Linux style.
+
+    Returns:
+      An argparse.Namespace object containing the parsed arguments.
+    """
+    parser = argparse.ArgumentParser(
+        description="Script to give the list og firms around a position defined by its lattitude and longitude and the radius")
+    parser.add_argument("-l", "--latitude", help="latitude of the position to look around", default='50.8010900')
+    parser.add_argument("-L", "--longitude", help="longitude of the position to look around", default="2.4852700")
+    parser.add_argument("-r", "--radius", help="radius in km to look around (max 50kms)", default="40")
+    parser.add_argument("-R", "--retry", help="amount of retry in case of error from the API", default=3)
+    parser.add_argument("-w", "--wait", help="wait between retry in seconds in case of error from the API",
+                        default=10)
+
+    return parser.parse_args()
+
+
+def write_to_csv(data, filename):
+    """
+    Writes the flattened JSON data to a CSV file.
+
+    Args:
+      data: The flattened JSON data (list of dictionaries).
+      filename: The name of the CSV file to write to.
+    """
+    with open(filename, 'w', newline='') as csvfile:
+        fieldnames = set()
+        for row in data:
+            fieldnames.update(row.keys())
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+
+
+def get_dirigeants(dirigeants):
+    result = ""
+    for dirigeant in dirigeants:
+        result = result + ";".join(f"{key}:{value}" for key, value in dirigeant.items()) + "||"
+
+    return result
+
+
+def filter_non_active_firm(firms):
+    return [firm for firm in firms if firm['etat_administratif'] == 'A']
+
+
+def enrich_distance_from_ref(refpoint, firms):
+    for firm in firms:
+        firm['distance_to_ref'] = geodesic(refpoint, (firm['latitude'], firm['longitude'])).km
+    return firms
+
+
+def get_dict_firms(response):
+    results = []
+    for firm in response.json()['results']:
+        print(firm)
+        for etablissement in firm['matching_etablissements']:
+            print("eta:" + str(etablissement))
+            result = {'nom_complet': firm['nom_complet'],
+                      'nombre_etablissements_ouverts': firm['nombre_etablissements_ouverts'],
+                      'siege_adresse': firm['siege']['adresse'],
+                      'date_fermeture': firm['date_fermeture'],
+                      'firm_tranche_effectif_salarie': firm['tranche_effectif_salarie'],
+                      'activite_principale': etablissement['activite_principale'],
+                      'adresse': etablissement['adresse'],
+                      'code_postal': etablissement['code_postal'],
+                      'etat_administratif': etablissement['etat_administratif'],
+                      'latitude': etablissement['latitude'],
+                      'longitude': etablissement['longitude'],
+                      'etablissement_tranche_effectif_salarie': etablissement['tranche_effectif_salarie'],
+                      'dirigeants': get_dirigeants(firm['dirigeants'])
+
+                      }
+            results.append(result)
+
+    return results
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+# TODO: add options to give which sector:
+url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}&section_activite_principale=D"
+# TODO: query every page:
+response = make_get_request(url, args.retry, args.wait)
+# TODO: add filter for the size of the company:
+print(enrich_distance_from_ref((args.latitude, args.longitude), filter_non_active_firm(get_dict_firms(response))))
