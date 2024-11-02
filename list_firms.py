@@ -58,8 +58,8 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser(
         description="Script to give the list og firms around a position defined by its lattitude and longitude and the radius")
-    parser.add_argument("-l", "--latitude", help="latitude of the position to look around", default='50.8010900')
-    parser.add_argument("-L", "--longitude", help="longitude of the position to look around", default="2.4852700")
+    parser.add_argument("-l", "--latitude", help="latitude of the position to look around", required=True)
+    parser.add_argument("-L", "--longitude", help="longitude of the position to look around", required=True)
     parser.add_argument("-r", "--radius", help="radius in km to look around (max 50kms)", default="5")
     parser.add_argument("-R", "--retry", help="amount of retry in case of error from the API", default=3)
     parser.add_argument("-s", "--section", help="section activite principale de l'entreprise comma separated (A,B,..)",
@@ -141,11 +141,11 @@ def csv_to_map(csv_file):
 def get_dict_firms(response):
     results = []
     for firm in response:
-
         for etablissement in firm['matching_etablissements']:
             result = {'nom_complet': firm['nom_complet'],
                       'nombre_etablissements_ouverts': firm['nombre_etablissements_ouverts'],
                       'siege_adresse': firm['siege']['adresse'],
+                      'siege_activite_principale': firm['siege']['activite_principale'],
                       'categorie_entreprise': firm['categorie_entreprise'],
                       'date_fermeture': firm['date_fermeture'],
                       'firm_tranche_effectif_salarie': get_effectifs(firm['tranche_effectif_salarie']),
@@ -165,11 +165,21 @@ def get_dict_firms(response):
     return results
 
 
+def build_url(args):
+    url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}"
+    if args.section:
+        url = url + f"&section_activite_principale={args.section}"
+    if args.activite:
+        url = url + f"&activite_principale={args.activite}"
+    print(f"url used to get the data:{url}")
+    return url + "&page="
+
+
 if __name__ == "__main__":
     args = parse_arguments()
-    # TODO: add options to give which section or code (one of them):
-    url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}&section_activite_principale=C&page="
-    response = get_all_pages(url, args.retry, args.wait)
+
+    response = get_all_pages(build_url(args), args.retry, args.wait)
     write_to_csv(
-        enrich_activite_descr(enrich_distance_from_ref((args.latitude, args.longitude), filter_non_active_firm(get_dict_firms(response)))),
-        'output.csv')
+        enrich_activite_descr(enrich_distance_from_ref((args.latitude, args.longitude),
+                                                       filter_non_active_firm(get_dict_firms(response)))),
+        f"output_{args}")
