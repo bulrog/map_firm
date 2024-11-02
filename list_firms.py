@@ -84,7 +84,7 @@ def write_to_csv(data, filename):
         fieldnames = set()
         for row in data:
             fieldnames.update(row.keys())
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer = csv.DictWriter(csvfile, fieldnames=sorted(fieldnames))
         writer.writeheader()
         writer.writerows(data)
 
