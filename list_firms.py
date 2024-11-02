@@ -182,4 +182,4 @@ if __name__ == "__main__":
     write_to_csv(
         enrich_activite_descr(enrich_distance_from_ref((args.latitude, args.longitude),
                                                        filter_non_active_firm(get_dict_firms(response)))),
-        f"output_{args}")
+        f"output.csv")

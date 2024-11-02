@@ -20,8 +20,7 @@ The script will search from a latitude and a longitude for a specific radius in 
 
     python list_firms.py -l 50.8010900 -L 2.4852700 
 
-The output will be written in a file named output followed by the provided arguments like:
-'output_Namespace(latitude='50.8010900', longitude='2.4852700', radius='10', retry=3, section=None, activite='10.11Z,10.12Z,10.13A,10.13B', wait=10)'
+The output will be written in a file named output.csv
 
 This can take a while to compute due to amount of companies so you can also filter on specific activity sections, see list in field 'section_activite_principale' [here](https://recherche-entreprises.api.gouv.fr/docs/#tag/Recherche-geographique):
 
@@ -35,7 +34,7 @@ WARNING: this only works for detail code like 10.11Z but not 10 or 10.1 or 10.11
 
 The content will be like:
 
-    (.venv) jem@jem-macbook map_firm % head -n 2 output_Namespace\(latitude=\'50.8010900\',\ longitude=\'2.4852700\',\ radius=\'10\',\ retry=3,\ section=None,\ activite=\'10.11Z,10.12Z,10.13A,10.13B\',\ wait=10\)
+    (.venv) jem@jem-macbook map_firm % head -n 2 output.csv
     nombre_etablissements_ouverts,activite_principale,longitude,etablissement_tranche_effectif_salarie,latitude,distance_to_ref,code_postal,dirigeants,siege_activite_principale,nom_complet,siege_adresse,firm_tranche_effectif_salarie,date_fermeture,etat_administratif,adresse,activite_descr,categorie_entreprise
     1,10.13A,2.543734,10-19,50.721212,9.7967265967429,59190,siren:413686692;denomination:MEDITERRANEENNE DE SALAISONS;qualite:Directeur Général;type_dirigeant:personne morale||siren:920690237;denomination:KORMOBOIS;qualite:Président de SAS;type_dirigeant:personne morale||,10.13A,BOIZET NORD (BOIZET JAMBONS),30 RUE D'HOLLEBECQUE 59190 HAZEBROUCK,10-19,,A,30 RUE D'HOLLEBECQUE 59190 HAZEBROUCK,Préparation industrielle de produits à base de viande,PME
 
