@@ -1,6 +1,6 @@
 # Purpose
 
-Find the companies in France and its distance from your location
+Find the companies in France and its distance from a specific GPS coordinates
 
 # setup
 
@@ -22,6 +22,16 @@ The script will search from a latitude and a longitude for a specific radius in 
 
 The output will be written in a file named output followed by the provided arguments like:
 'output_Namespace(latitude='50.8010900', longitude='2.4852700', radius='10', retry=3, section=None, activite='10.11Z,10.12Z,10.13A,10.13B', wait=10)'
+
+This can take a while to compute due to amount of companies so you can also filter on specific activity sections, see list in field 'section_activite_principale' [here](https://recherche-entreprises.api.gouv.fr/docs/#tag/Recherche-geographique):
+
+    python list_firms.py -l 50.8010900 -L 2.4852700 -s B,C
+
+or even on a specific list of actitivities by using their NAF code that you can download from [here](https://www.insee.fr/fr/information/2120875)
+
+WARNING: this only works for detail code like 10.11Z but not 10 or 10.1 or 10.11
+
+    python list_firms.py -l 50.8010900 -L 2.4852700 -a 10.11Z,10.12Z,10.13A,10.13B
 
 The content will be like:
 
