@@ -43,7 +43,7 @@ def get_all_pages(url, max_retry, wait_between_retry_in_sec):
         single_page = make_get_request(url + str(page), max_retry, wait_between_retry_in_sec)
         print(f"get page {page} on a total of {single_page.json()['total_pages']}")
         all_results.extend(single_page.json()['results'])
-        if (single_page.json()['total_pages'] == page):
+        if (single_page.json()['total_pages'] < page):
             page = -1
         else:
             page += 1
@@ -62,7 +62,10 @@ def parse_arguments():
     parser.add_argument("-L", "--longitude", help="longitude of the position to look around", default="2.4852700")
     parser.add_argument("-r", "--radius", help="radius in km to look around (max 50kms)", default="5")
     parser.add_argument("-R", "--retry", help="amount of retry in case of error from the API", default=3)
-    parser.add_argument("-s", "--section", help="activite principale de l'entreprise (code NAF: A, B...)", default="C")
+    parser.add_argument("-s", "--section", help="section activite principale de l'entreprise comma separated (A,B,..)",
+                        required=False)
+    parser.add_argument("-a", "--activite", help="activite principale de l'entreprise (code NAF: 10.12Z,10.20Z,...)",
+                        required=False)
     parser.add_argument("-w", "--wait", help="wait between retry in seconds in case of error from the API",
                         default=10)
 
@@ -104,6 +107,17 @@ def enrich_distance_from_ref(refpoint, firms):
     return firms
 
 
+def enrich_activite_descr(firms):
+    activite_to_map = csv_to_map('codeNaf2desc.csv')
+
+    for firm in firms:
+        if firm['activite_principale'] not in activite_to_map.keys():
+            firm['activite_descr'] = None
+        else:
+            firm['activite_descr'] = activite_to_map[firm['activite_principale']]
+    return firms
+
+
 def get_effectifs(code):
     if not code:
         return None
@@ -112,12 +126,23 @@ def get_effectifs(code):
     return code_to_effectifs[code]
 
 
+def csv_to_map(csv_file):
+    result_map = {}
+    with open(csv_file, 'r') as file:
+        reader = csv.reader(file, delimiter=';')
+        next(reader)  # Skip the header row if present
+        for row in reader:
+            key = row[0]
+            value = row[1]
+            result_map[key] = value
+    return result_map
+
+
 def get_dict_firms(response):
     results = []
     for firm in response:
-        print(firm)
+
         for etablissement in firm['matching_etablissements']:
-            print("eta:" + str(etablissement))
             result = {'nom_complet': firm['nom_complet'],
                       'nombre_etablissements_ouverts': firm['nombre_etablissements_ouverts'],
                       'siege_adresse': firm['siege']['adresse'],
@@ -142,11 +167,9 @@ def get_dict_firms(response):
 
 if __name__ == "__main__":
     args = parse_arguments()
-
     # TODO: add options to give which section or code (one of them):
-    url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}&section_activite_principale={args.section}&page="
+    url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}&section_activite_principale=C&page="
     response = get_all_pages(url, args.retry, args.wait)
-    print(response)
     write_to_csv(
-        enrich_distance_from_ref((args.latitude, args.longitude), filter_non_active_firm(get_dict_firms(response))),
+        enrich_activite_descr(enrich_distance_from_ref((args.latitude, args.longitude), filter_non_active_firm(get_dict_firms(response)))),
         'output.csv')
