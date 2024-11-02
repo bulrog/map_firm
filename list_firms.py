@@ -166,7 +166,7 @@ def get_dict_firms(response):
 
 
 def build_url(args):
-    url = f"https://recherche-entreprises.api.gouv.fr/near_point?lat={args.latitude}&long={args.longitude}&radius={args.radius}"
+    url = f"https://recherche-entreprises.api.gouv.fr/near_point?per_page=25&lat={args.latitude}&long={args.longitude}&radius={args.radius}"
     if args.section:
         url = url + f"&section_activite_principale={args.section}"
     if args.activite:
