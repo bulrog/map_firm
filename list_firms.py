@@ -4,6 +4,24 @@ import time
 import csv
 from geopy.distance import geodesic
 
+code_to_effectifs = {
+    "00": "0",
+    "01": "1-2",
+    "02": "3-5",
+    "03": "6-9",
+    "11": "10-19",
+    "12": "20-49",
+    "21": "50-99",
+    "22": "100-199",
+    "31": "200-249",
+    "32": "250-499",
+    "41": "500-999",
+    "42": "1000-1999",
+    "51": "2000-4999",
+    "52": "5000-9999",
+    "53": "+10000"
+}
+
 
 def make_get_request(url, max_retry, wait_between_retry_in_sec):
     retry = 0
@@ -17,19 +35,19 @@ def make_get_request(url, max_retry, wait_between_retry_in_sec):
             retry += 1
         time.sleep(wait_between_retry_in_sec)
 
+
 def get_all_pages(url, max_retry, wait_between_retry_in_sec):
-    page=1
-    all_results=[]
-    while page>0:
-        single_page = make_get_request(url+str(page), max_retry, wait_between_retry_in_sec)
+    page = 1
+    all_results = []
+    while page > 0:
+        single_page = make_get_request(url + str(page), max_retry, wait_between_retry_in_sec)
         print(f"get page {page} on a total of {single_page.json()['total_pages']}")
         all_results.extend(single_page.json()['results'])
-        if (single_page.json()['total_pages']==page):
-            page=-1
+        if (single_page.json()['total_pages'] == page):
+            page = -1
         else:
-            page+=1
+            page += 1
     return all_results
-
 
 
 def parse_arguments():
@@ -42,7 +60,7 @@ def parse_arguments():
         description="Script to give the list og firms around a position defined by its lattitude and longitude and the radius")
     parser.add_argument("-l", "--latitude", help="latitude of the position to look around", default='50.8010900')
     parser.add_argument("-L", "--longitude", help="longitude of the position to look around", default="2.4852700")
-    parser.add_argument("-r", "--radius", help="radius in km to look around (max 50kms)", default="10")
+    parser.add_argument("-r", "--radius", help="radius in km to look around (max 50kms)", default="5")
     parser.add_argument("-R", "--retry", help="amount of retry in case of error from the API", default=3)
     parser.add_argument("-s", "--section", help="activite principale de l'entreprise (code NAF: A, B...)", default="C")
     parser.add_argument("-w", "--wait", help="wait between retry in seconds in case of error from the API",
@@ -86,6 +104,14 @@ def enrich_distance_from_ref(refpoint, firms):
     return firms
 
 
+def get_effectifs(code):
+    if not code:
+        return None
+    if code not in code_to_effectifs.keys():
+        return None
+    return code_to_effectifs[code]
+
+
 def get_dict_firms(response):
     results = []
     for firm in response:
@@ -95,22 +121,23 @@ def get_dict_firms(response):
             result = {'nom_complet': firm['nom_complet'],
                       'nombre_etablissements_ouverts': firm['nombre_etablissements_ouverts'],
                       'siege_adresse': firm['siege']['adresse'],
+                      'categorie_entreprise': firm['categorie_entreprise'],
                       'date_fermeture': firm['date_fermeture'],
-                      'firm_tranche_effectif_salarie': firm['tranche_effectif_salarie'],
+                      'firm_tranche_effectif_salarie': get_effectifs(firm['tranche_effectif_salarie']),
                       'activite_principale': etablissement['activite_principale'],
                       'adresse': etablissement['adresse'],
                       'code_postal': etablissement['code_postal'],
                       'etat_administratif': etablissement['etat_administratif'],
                       'latitude': etablissement['latitude'],
                       'longitude': etablissement['longitude'],
-                      'etablissement_tranche_effectif_salarie': etablissement['tranche_effectif_salarie'],
+                      'etablissement_tranche_effectif_salarie': get_effectifs(
+                          etablissement['tranche_effectif_salarie']),
                       'dirigeants': get_dirigeants(firm['dirigeants'])
 
                       }
             results.append(result)
 
     return results
-
 
 
 if __name__ == "__main__":
